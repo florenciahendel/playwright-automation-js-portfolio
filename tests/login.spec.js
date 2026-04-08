@@ -1,27 +1,33 @@
 import { test, expect } from '@playwright/test';
+import { LoginPage } from '../pages/LoginPage';
 
-test('User can login successfully', async ({ page }) => {
-    await page.goto('https://www.saucedemo.com/');
+test.describe('Sauce Demo authentication', () => {
+    let loginPage;
 
-    await page.getByPlaceholder('Username').fill('standard_user');
-    await page.getByPlaceholder('Password').fill('secret_sauce');
-    await page.getByRole('button', { name: 'Login' }).click();
+    test.beforeEach(async ({ page }) => {
+        loginPage = new LoginPage(page);
+        await loginPage.goto();
+    });
 
-    await expect(page).toHaveURL('https://www.saucedemo.com/inventory.html');
-    const productsTitle = page.locator('.title');
-    await expect(productsTitle).toBeVisible();
-    await expect(productsTitle).toHaveText('Products');
+
+    test('User can login successfully', async ({ page }) => {
+        await loginPage.login('standard_user', 'secret_sauce');
+
+        await expect(page).toHaveURL(/inventory\.html/i);
+
+    });
+
+    test('User cannot login if locked out', async ({ page }) => {
+        await loginPage.login('locked_out_user', 'secret_sauce');
+
+        await expect(loginPage.errorMessage).toBeVisible();
+        await expect(loginPage.errorMessage).toContainText('Sorry, this user has been locked out.');
+    });
+
+    test('User cannot login with invalid credentials', async ({ page }) => {
+        await loginPage.login('error_user', 'secret_sacue');
+
+        await expect(loginPage.errorMessage).toBeVisible();
+        await expect(loginPage.errorMessage).toContainText('Epic sadface: Username and password do not match any user in this service');
+    });
 });
-
-test('User cannot login with invalid credentials', async ({ page }) => {
-    await page.goto('https://www.saucedemo.com/');
-    await page.getByPlaceholder('Username').fill('invalid_user');
-    await page.getByPlaceholder('Password').fill('secret_sauce');
-    await page.getByRole('button', { name: 'Login' }).click();
-
-    const errorMessage = page.locator('[data-test="error"]');
-    await expect(errorMessage).toBeVisible();
-    await expect(errorMessage).toHaveText('Epic sadface: Username and password do not match any user in this service');
-});
-
-
